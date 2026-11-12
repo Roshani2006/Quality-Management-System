@@ -1,0 +1,2 @@
+method,pathTemplate,bodyFile,contentType,expectedStatusJsonPath,expectedStatus
+# Replace this example with the application's actual transition methods, paths, payloads, and status values.

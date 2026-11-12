@@ -1,0 +1,2 @@
+category,caseName,method,pathTemplate,bodyFile,contentType,expectedStatusCode
+# Replace with a real invalid or boundary request and its documented rejection status.
