@@ -1,0 +1,88 @@
+name: QMS test framework
+
+on:
+  push:
+  pull_request:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  id-token: write
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: '8'
+          cache: maven
+      - name: Run test framework
+        run: mvn --batch-mode test
+        env:
+          QMS_UI_WORKSPACE_URL: ${{ vars.QMS_UI_WORKSPACE_URL }}
+          QMS_UI_DOCUMENT_TITLE: ${{ vars.QMS_UI_DOCUMENT_TITLE }}
+          QMS_UI_DOCUMENT_FILE: ${{ vars.QMS_UI_DOCUMENT_FILE }}
+          QMS_UI_TITLE_INPUT_SELECTOR: ${{ vars.QMS_UI_TITLE_INPUT_SELECTOR }}
+          QMS_UI_FILE_INPUT_SELECTOR: ${{ vars.QMS_UI_FILE_INPUT_SELECTOR }}
+          QMS_UI_CREATE_BUTTON_SELECTOR: ${{ vars.QMS_UI_CREATE_BUTTON_SELECTOR }}
+          QMS_UI_STATUS_SELECTOR: ${{ vars.QMS_UI_STATUS_SELECTOR }}
+          QMS_UI_SUBMIT_FOR_APPROVAL_SELECTOR: ${{ vars.QMS_UI_SUBMIT_FOR_APPROVAL_SELECTOR }}
+          QMS_UI_APPROVE_SELECTOR: ${{ vars.QMS_UI_APPROVE_SELECTOR }}
+          QMS_UI_VERSION_HISTORY_BUTTON_SELECTOR: ${{ vars.QMS_UI_VERSION_HISTORY_BUTTON_SELECTOR }}
+          QMS_UI_VERSION_ENTRIES_SELECTOR: ${{ vars.QMS_UI_VERSION_ENTRIES_SELECTOR }}
+          QMS_UI_AUDIT_TRAIL_BUTTON_SELECTOR: ${{ vars.QMS_UI_AUDIT_TRAIL_BUTTON_SELECTOR }}
+          QMS_UI_AUDIT_ENTRIES_SELECTOR: ${{ vars.QMS_UI_AUDIT_ENTRIES_SELECTOR }}
+          QMS_UI_DRAFT_STATUS: ${{ vars.QMS_UI_DRAFT_STATUS }}
+          QMS_UI_PENDING_APPROVAL_STATUS: ${{ vars.QMS_UI_PENDING_APPROVAL_STATUS }}
+          QMS_UI_APPROVED_STATUS: ${{ vars.QMS_UI_APPROVED_STATUS }}
+          QMS_BROWSER: ${{ vars.QMS_BROWSER }}
+          QMS_BROWSER_HEADLESS: ${{ vars.QMS_BROWSER_HEADLESS }}
+          QMS_SELENIUM_DRIVER_PATH: ${{ vars.QMS_SELENIUM_DRIVER_PATH }}
+          QMS_API_BASE_URL: ${{ vars.QMS_API_BASE_URL }}
+          QMS_API_UPLOAD_METHOD: ${{ vars.QMS_API_UPLOAD_METHOD }}
+          QMS_API_UPLOAD_PATH: ${{ vars.QMS_API_UPLOAD_PATH }}
+          QMS_API_UPLOAD_BODY_FILE: ${{ vars.QMS_API_UPLOAD_BODY_FILE }}
+          QMS_API_UPLOAD_CONTENT_TYPE: ${{ vars.QMS_API_UPLOAD_CONTENT_TYPE }}
+          QMS_API_UPLOAD_ID_JSON_PATH: ${{ vars.QMS_API_UPLOAD_ID_JSON_PATH }}
+          QMS_API_TRANSITIONS_FILE: ${{ vars.QMS_API_TRANSITIONS_FILE }}
+          QMS_API_NEGATIVE_CASES_FILE: ${{ vars.QMS_API_NEGATIVE_CASES_FILE }}
+          QMS_API_METADATA_PATH_TEMPLATE: ${{ vars.QMS_API_METADATA_PATH_TEMPLATE }}
+          QMS_API_SEARCH_PATH: ${{ vars.QMS_API_SEARCH_PATH }}
+          QMS_API_SEARCH_QUERY_PARAMETER: ${{ vars.QMS_API_SEARCH_QUERY_PARAMETER }}
+          QMS_API_SEARCH_RESULTS_JSON_PATH: ${{ vars.QMS_API_SEARCH_RESULTS_JSON_PATH }}
+          QMS_API_SEARCH_QUERY: ${{ vars.QMS_API_SEARCH_QUERY }}
+          QMS_API_BEARER_TOKEN: ${{ secrets.QMS_API_BEARER_TOKEN }}
+          QMS_DB_JDBC_URL: ${{ vars.QMS_DB_JDBC_URL }}
+          QMS_DB_USERNAME: ${{ secrets.QMS_DB_USERNAME }}
+          QMS_DB_PASSWORD: ${{ secrets.QMS_DB_PASSWORD }}
+          QMS_DB_VALIDATE_AFTER_WORKFLOW: ${{ vars.QMS_DB_VALIDATE_AFTER_WORKFLOW }}
+          QMS_DB_VALIDATION_QUERY: ${{ vars.QMS_DB_VALIDATION_QUERY }}
+          QMS_DB_EXPECTED_VALUE: ${{ vars.QMS_DB_EXPECTED_VALUE }}
+      - name: Upload test reports
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: qms-test-reports
+          path: |
+            target/surefire-reports/
+            target/cucumber-report.json
+            target/extent-report.html
+            target/screenshots/
+          if-no-files-found: ignore
+      - name: Configure AWS credentials
+        if: always() && vars.TEST_ARTIFACTS_S3_BUCKET != ''
+        uses: aws-actions/configure-aws-credentials@v4
+        with:
+          role-to-assume: ${{ secrets.AWS_ROLE_ARN }}
+          aws-region: ${{ vars.AWS_REGION }}
+      - name: Upload reports to S3
+        if: always() && vars.TEST_ARTIFACTS_S3_BUCKET != ''
+        env:
+          ARTIFACT_BUCKET: ${{ vars.TEST_ARTIFACTS_S3_BUCKET }}
+          ARTIFACT_PREFIX: ${{ vars.TEST_ARTIFACTS_S3_PREFIX }}
+        run: |
+          aws s3 cp target/ "s3://${ARTIFACT_BUCKET}/${ARTIFACT_PREFIX:-qms-tests/${GITHUB_RUN_ID}}/" \
+            --recursive --exclude "*" --include "*.html" --include "*.json" --include "*.png" --include "*.xml"

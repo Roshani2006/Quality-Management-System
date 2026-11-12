@@ -1,0 +1,13 @@
+<!DOCTYPE suite SYSTEM "https://testng.org/testng-1.0.dtd">
+<suite name="QMS Test Suite" data-provider-thread-count="4" parallel="tests" thread-count="4">
+    <listeners>
+        <listener class-name="com.qualitymanagement.framework.reporting.ExtentReportListener"/>
+    </listeners>
+    <test name="UI, API, and data integrity">
+        <classes>
+            <class name="com.qualitymanagement.framework.ui.UiTestRunner"/>
+            <class name="com.qualitymanagement.framework.api.DocumentApiContractTest"/>
+            <class name="com.qualitymanagement.framework.data.TestDataLoaderTest"/>
+        </classes>
+    </test>
+</suite>
